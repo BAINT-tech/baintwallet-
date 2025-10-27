@@ -1,26 +1,29 @@
 <!DOCTYPE html>
-<html lang="eng">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaintWallet Ultimate v3.0</title>
+    <title>BaintWallet v3.0</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #root { min-height: 100vh; }
+    </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
-        const BaintWallet = () => {
+        
+        function BaintWallet() {
           const [wallet, setWallet] = useState(null);
-          const [showPrivateKey, setShowPrivateKey] = useState(false);
           const [showSeedPhrase, setShowSeedPhrase] = useState(false);
           const [inputSeedPhrase, setInputSeedPhrase] = useState('');
-          const [inputPrivateKey, setInputPrivateKey] = useState('');
           const [activeTab, setActiveTab] = useState('create');
           const [copied, setCopied] = useState('');
           const [selectedChain, setSelectedChain] = useState('ETH');
@@ -31,103 +34,83 @@
           const [isTestnet, setIsTestnet] = useState(true);
           const [transactions, setTransactions] = useState([]);
           const [isLoading, setIsLoading] = useState(false);
-          const [tokens, setTokens] = useState([]);
+          const [showQR, setShowQR] = useState(false);
           const qrRef = useRef(null);
 
           const chains = [
-            { id: 'ETH', name: 'Ethereum', symbol: 'ETH', color: 'from-blue-500 to-purple-600', mainnetRPC: 'https://eth.llamarpc.com', testnetRPC: 'https://ethereum-sepolia-rpc.publicnode.com', type: 'EVM' },
-            { id: 'BNB', name: 'BNB Chain', symbol: 'BNB', color: 'from-yellow-400 to-yellow-600', mainnetRPC: 'https://bsc-dataseed.binance.org', testnetRPC: 'https://bsc-testnet-rpc.publicnode.com', type: 'EVM' },
-            { id: 'AVAX', name: 'Avalanche', symbol: 'AVAX', color: 'from-red-500 to-pink-600', mainnetRPC: 'https://api.avax.network/ext/bc/C/rpc', testnetRPC: 'https://api.avax-test.network/ext/bc/C/rpc', type: 'EVM' },
-            { id: 'BASE', name: 'Base', symbol: 'ETH', color: 'from-blue-600 to-indigo-700', mainnetRPC: 'https://mainnet.base.org', testnetRPC: 'https://sepolia.base.org', type: 'EVM' },
-            { id: 'SOL', name: 'Solana', symbol: 'SOL', color: 'from-purple-500 to-pink-500', mainnetRPC: 'https://api.mainnet-beta.solana.com', testnetRPC: 'https://api.devnet.solana.com', type: 'SOL' },
-            { id: 'BTC', name: 'Bitcoin', symbol: 'BTC', color: 'from-orange-500 to-yellow-500', mainnetRPC: 'https://blockstream.info/api', testnetRPC: 'https://blockstream.info/testnet/api', type: 'BTC' },
-            { id: 'DOGE', name: 'Dogecoin', symbol: 'DOGE', color: 'from-yellow-300 to-orange-400', type: 'DOGE' },
-            { id: 'HYPE', name: 'Hyperliquid', symbol: 'HYPE', color: 'from-cyan-500 to-blue-600', type: 'EVM' },
+            { id: 'ETH', name: 'Ethereum', symbol: 'ETH', color: 'from-blue-500 to-purple-600', rpc: 'https://ethereum-sepolia-rpc.publicnode.com', type: 'EVM' },
+            { id: 'BNB', name: 'BNB Chain', symbol: 'BNB', color: 'from-yellow-400 to-yellow-600', rpc: 'https://bsc-testnet-rpc.publicnode.com', type: 'EVM' },
+            { id: 'AVAX', name: 'Avalanche', symbol: 'AVAX', color: 'from-red-500 to-pink-600', rpc: 'https://api.avax-test.network/ext/bc/C/rpc', type: 'EVM' },
+            { id: 'BASE', name: 'Base', symbol: 'ETH', color: 'from-blue-600 to-indigo-700', rpc: 'https://sepolia.base.org', type: 'EVM' },
+            { id: 'SOL', name: 'Solana', symbol: 'SOL', color: 'from-purple-500 to-pink-500', rpc: 'https://api.devnet.solana.com', type: 'SOL' },
+            { id: 'BTC', name: 'Bitcoin', symbol: 'BTC', color: 'from-orange-500 to-yellow-500', rpc: 'https://blockstream.info/testnet/api', type: 'BTC' },
             { id: 'PI', name: 'Pi Network', symbol: 'PI', color: 'from-purple-600 to-indigo-800', type: 'PI' }
           ];
 
-          const BIP39 = ['abandon','ability','able','about','above','absent','absorb','abstract','absurd','abuse','access','accident','account','accuse','achieve','acid','acoustic','acquire','across','act'];
+          const words = ['abandon','ability','able','about','above','absent','absorb','abstract','absurd','abuse','access','accident','account','accuse','achieve','acid','acoustic','acquire','across','act'];
           
-          const generateSeedPhrase = () => {
-            const words = [];
-            for (let i = 0; i < 12; i++) words.push(BIP39[Math.floor(Math.random() * BIP39.length)]);
-            return words.join(' ');
+          const generateSeed = () => {
+            let s = [];
+            for (let i = 0; i < 12; i++) s.push(words[Math.floor(Math.random() * words.length)]);
+            return s.join(' ');
           };
 
-          const bytesToHex = (b) => Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('');
+          const toHex = (b) => Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('');
 
-          const seedToPrivateKey = async (seed) => {
+          const seedToPk = async (seed) => {
             const enc = new TextEncoder();
             const km = await crypto.subtle.importKey('raw', enc.encode(seed), {name:'PBKDF2'}, false, ['deriveBits']);
             const bits = await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode('mnemonic'),iterations:2048,hash:'SHA-512'}, km, 512);
-            return '0x' + bytesToHex(new Uint8Array(bits).slice(0,32));
+            return '0x' + toHex(new Uint8Array(bits).slice(0,32));
           };
 
-          const privateKeyToAddress = async (pk, chain) => {
+          const pkToAddr = async (pk, chain) => {
             const c = chains.find(x => x.id === chain);
             if (c.type === 'EVM') {
               try {
                 return new ethers.Wallet(pk).address;
               } catch(e) {
-                const enc = new TextEncoder();
-                const hash = await crypto.subtle.digest('SHA-256', enc.encode(pk + 'eth'));
-                return '0x' + bytesToHex(new Uint8Array(hash).slice(12,32));
+                return '0x' + toHex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pk + 'eth'))).slice(12,32));
               }
             }
             if (c.type === 'SOL') {
-              const base58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-              const enc = new TextEncoder();
-              const hash = await crypto.subtle.digest('SHA-256', enc.encode(pk + 'sol'));
-              const arr = new Uint8Array(hash);
+              const b58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+              const arr = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pk + 'sol')));
               let addr = '';
-              for (let i = 0; i < 44; i++) addr += base58[arr[i % arr.length] % base58.length];
+              for (let i = 0; i < 44; i++) addr += b58[arr[i % arr.length] % b58.length];
               return addr;
             }
             if (c.type === 'BTC') {
-              const base58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-              const enc = new TextEncoder();
-              const hash = await crypto.subtle.digest('SHA-256', enc.encode(pk + 'btc'));
-              const arr = new Uint8Array(hash);
+              const b58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+              const arr = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pk + 'btc')));
               let addr = '1';
-              for (let i = 0; i < 33; i++) addr += base58[arr[i % arr.length] % base58.length];
+              for (let i = 0; i < 33; i++) addr += b58[arr[i % arr.length] % b58.length];
               return addr;
             }
             if (c.type === 'PI') {
-              const enc = new TextEncoder();
-              const hash = await crypto.subtle.digest('SHA-256', enc.encode(pk + 'pi'));
-              return 'GAAA' + bytesToHex(new Uint8Array(hash)).substring(4, 56);
-            }
-            if (c.type === 'DOGE') {
-              const base58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-              const enc = new TextEncoder();
-              const hash = await crypto.subtle.digest('SHA-256', enc.encode(pk + 'doge'));
-              const arr = new Uint8Array(hash);
-              let addr = 'D';
-              for (let i = 0; i < 33; i++) addr += base58[arr[i % arr.length] % base58.length];
-              return addr;
+              return 'GAAA' + toHex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pk + 'pi')))).substring(4, 56);
             }
             return '0x0000000000000000000000000000000000000000';
           };
 
-          const fetchBalance = async (addr, chain) => {
+          const getBalance = async (addr, chain) => {
             try {
               setIsLoading(true);
               const c = chains.find(x => x.id === chain);
-              const rpc = isTestnet ? c.testnetRPC : c.mainnetRPC;
               if (c.type === 'EVM') {
-                const provider = new ethers.providers.JsonRpcProvider(rpc);
-                const balance = await provider.getBalance(addr);
-                return ethers.utils.formatEther(balance);
+                const p = new ethers.providers.JsonRpcProvider(c.rpc);
+                const b = await p.getBalance(addr);
+                return ethers.utils.formatEther(b);
               }
               if (c.type === 'SOL') {
-                const res = await fetch(rpc, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[addr]})});
-                const d = await res.json();
+                const r = await fetch(c.rpc, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[addr]})});
+                const d = await r.json();
                 return d.result?.value ? (d.result.value/1e9).toFixed(4) : '0.0000';
               }
               if (c.type === 'BTC') {
-                const res = await fetch(`${rpc}/address/${addr}`);
-                if (!res.ok) return '0.00000000';
-                const d = await res.json();
+                const r = await fetch(`${c.rpc}/address/${addr}`);
+                if (!r.ok) return '0.00000000';
+                const d = await r.json();
                 return ((d.chain_stats.funded_txo_sum - d.chain_stats.spent_txo_sum)/1e8).toFixed(8);
               }
               return '0.0000';
@@ -138,69 +121,67 @@
             }
           };
 
-          const sendTransaction = async () => {
+          const send = async () => {
             if (!sendTo || !sendAmount) {alert('❌ Enter address and amount');return;}
             const c = chains.find(x => x.id === wallet.currentChain);
             try {
               setIsLoading(true);
               if (c.type === 'EVM') {
-                const rpc = isTestnet ? c.testnetRPC : c.mainnetRPC;
-                const provider = new ethers.providers.JsonRpcProvider(rpc);
-                const signer = new ethers.Wallet(wallet.privateKey, provider);
-                const tx = await signer.sendTransaction({to: sendTo,value: ethers.utils.parseEther(sendAmount)});
+                const p = new ethers.providers.JsonRpcProvider(c.rpc);
+                const s = new ethers.Wallet(wallet.pk, p);
+                const tx = await s.sendTransaction({to: sendTo, value: ethers.utils.parseEther(sendAmount)});
                 alert(`✅ Sent!\n\nHash: ${tx.hash}`);
-                const txRecord = {id: tx.hash,type: 'send',from: wallet.addresses[wallet.currentChain],to: sendTo,amount: sendAmount,symbol: c.symbol,timestamp: new Date().toISOString(),status: 'pending',chain: wallet.currentChain};
-                setTransactions([txRecord, ...transactions]);
+                setTransactions([{id:tx.hash,type:'send',to:sendTo,amount:sendAmount,symbol:c.symbol,timestamp:new Date().toISOString(),status:'pending',chain:wallet.currentChain},...transactions]);
                 tx.wait().then(() => {
-                  setTransactions(prev => prev.map(t => t.id === tx.hash ? {...t, status: 'confirmed'} : t));
-                  fetchBalance(wallet.addresses[wallet.currentChain], wallet.currentChain).then(bal => setWallet({...wallet, balance: bal}));
+                  setTransactions(p => p.map(t => t.id === tx.hash ? {...t, status: 'confirmed'} : t));
+                  getBalance(wallet.addresses[wallet.currentChain], wallet.currentChain).then(b => setWallet({...wallet, balance: b}));
                 });
                 setSendTo('');setSendAmount('');setCurrentView('wallet');
               } else {
-                alert(`⚠️ ${c.name} requires additional SDK for sending`);
+                alert(`⚠️ ${c.name} requires SDK for sending`);
               }
             } catch(e) {
-              alert('❌ Failed: ' + e.message);
+              alert('❌ ' + e.message);
             } finally {
               setIsLoading(false);
             }
           };
 
-          const createWallet = async () => {
+          const create = async () => {
             setIsLoading(true);
             try {
-              const seed = generateSeedPhrase();
-              const pk = await seedToPrivateKey(seed);
-              const addr = await privateKeyToAddress(pk, selectedChain);
-              const bal = await fetchBalance(addr, selectedChain);
-              setWallet({seedPhrase:seed,privateKey:pk,addresses:{[selectedChain]:addr},balance:bal,currentChain:selectedChain});
+              const seed = generateSeed();
+              const pk = await seedToPk(seed);
+              const addr = await pkToAddr(pk, selectedChain);
+              const bal = await getBalance(addr, selectedChain);
+              setWallet({seed,pk,addresses:{[selectedChain]:addr},balance:bal,currentChain:selectedChain});
             } finally {
               setIsLoading(false);
             }
           };
 
-          const switchChain = async (chainId) => {
-            if (!wallet.addresses[chainId]) {
-              const addr = await privateKeyToAddress(wallet.privateKey, chainId);
-              const bal = await fetchBalance(addr, chainId);
-              setWallet({...wallet,addresses:{...wallet.addresses,[chainId]:addr},balance:bal,currentChain:chainId});
+          const switchCh = async (id) => {
+            if (!wallet.addresses[id]) {
+              const addr = await pkToAddr(wallet.pk, id);
+              const bal = await getBalance(addr, id);
+              setWallet({...wallet,addresses:{...wallet.addresses,[id]:addr},balance:bal,currentChain:id});
             } else {
-              const bal = await fetchBalance(wallet.addresses[chainId], chainId);
-              setWallet({...wallet,balance:bal,currentChain:chainId});
+              const bal = await getBalance(wallet.addresses[id], id);
+              setWallet({...wallet,balance:bal,currentChain:id});
             }
             setShowChainDropdown(false);
           };
 
-          const copyToClipboard = (text, label) => {
-            navigator.clipboard.writeText(text);
-            setCopied(label);
+          const copy = (t, l) => {
+            navigator.clipboard.writeText(t);
+            setCopied(l);
             setTimeout(() => setCopied(''), 2000);
           };
 
           useEffect(() => {
             if (showQR && qrRef.current && wallet) {
               qrRef.current.innerHTML = '';
-              new QRCode(qrRef.current, {text: wallet.addresses[wallet.currentChain],width: 256,height: 256});
+              new QRCode(qrRef.current, {text: wallet.addresses[wallet.currentChain], width: 200, height: 200});
             }
           }, [showQR, wallet?.currentChain]);
 
@@ -213,11 +194,11 @@
                       <div className="text-4xl">💼</div>
                     </div>
                     <h1 className="text-3xl font-bold text-gray-800 mb-2">BaintWallet v3.0</h1>
-                    <p className="text-green-600 font-bold">✅ ALL WORKING!</p>
+                    <p className="text-green-600 font-bold">✅ WORKING!</p>
                   </div>
                   <div className="mb-6">
                     <div className="grid grid-cols-3 gap-2">
-                      {chains.map((c) => (
+                      {chains.map(c => (
                         <button key={c.id} onClick={() => setSelectedChain(c.id)} className={`p-3 rounded-lg border-2 ${selectedChain === c.id ? 'border-purple-600 bg-purple-50' : 'border-gray-200'}`}>
                           <div className="text-xs font-bold">{c.id}</div>
                         </button>
@@ -229,11 +210,11 @@
                     <button onClick={() => setActiveTab('import')} className={`flex-1 py-3 rounded-lg font-semibold ${activeTab === 'import' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}>Import</button>
                   </div>
                   {activeTab === 'create' ? (
-                    <button onClick={createWallet} disabled={isLoading} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-lg font-bold">{isLoading ? 'Creating...' : '🔒 Create Wallet'}</button>
+                    <button onClick={create} disabled={isLoading} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-lg font-bold">{isLoading ? 'Creating...' : '🔒 Create'}</button>
                   ) : (
                     <div className="space-y-4">
                       <textarea value={inputSeedPhrase} onChange={(e) => setInputSeedPhrase(e.target.value)} placeholder="12-word seed" className="w-full border rounded-lg p-3" rows="3" />
-                      <button onClick={async () => {if(!inputSeedPhrase.trim())return;setIsLoading(true);const pk=await seedToPrivateKey(inputSeedPhrase);const addr=await privateKeyToAddress(pk,selectedChain);const bal=await fetchBalance(addr,selectedChain);setWallet({seedPhrase:inputSeedPhrase,privateKey:pk,addresses:{[selectedChain]:addr},balance:bal,currentChain:selectedChain});setInputSeedPhrase('');setIsLoading(false);}} className="w-full bg-purple-600 text-white py-3 rounded-lg">Import</button>
+                      <button onClick={async () => {if(!inputSeedPhrase.trim())return;setIsLoading(true);const pk=await seedToPk(inputSeedPhrase);const addr=await pkToAddr(pk,selectedChain);const bal=await getBalance(addr,selectedChain);setWallet({seed:inputSeedPhrase,pk,addresses:{[selectedChain]:addr},balance:bal,currentChain:selectedChain});setInputSeedPhrase('');setIsLoading(false);}} className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold">Import</button>
                     </div>
                   )}
                 </div>
@@ -247,58 +228,50 @@
               <div className="max-w-2xl mx-auto">
                 <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
                   <div className={`bg-gradient-to-r ${c.color} p-6 text-white`}>
-                    <div className="flex justify-between mb-4">
-                      <h1 className="text-2xl font-bold">💼 BaintWallet</h1>
-                      <button onClick={() => setIsTestnet(!isTestnet)} className="bg-white/20 px-3 py-2 rounded-lg text-xs">{isTestnet ? '🧪 Testnet' : '🌐 Mainnet'}</button>
-                    </div>
+                    <h1 className="text-2xl font-bold mb-4">💼 BaintWallet</h1>
                     <div className="relative mb-4">
                       <button onClick={() => setShowChainDropdown(!showChainDropdown)} className="w-full bg-white/20 rounded-xl p-4 flex items-center justify-between">
                         <div className="font-bold text-lg">{c.name}</div>
                         <span>▼</span>
                       </button>
                       {showChainDropdown && (
-                        <div className="absolute w-full mt-2 bg-white rounded-xl shadow-2xl z-20 max-h-96 overflow-y-auto">
-                          {chains.map((ch) => (
-                            <button key={ch.id} onClick={() => switchChain(ch.id)} className="w-full p-4 text-left hover:bg-gray-50">
-                              <div className="text-gray-800 font-bold">{ch.name}</div>
-                            </button>
+                        <div className="absolute w-full mt-2 bg-white rounded-xl shadow-2xl z-20">
+                          {chains.map(ch => (
+                            <button key={ch.id} onClick={() => switchCh(ch.id)} className="w-full p-4 text-left hover:bg-gray-50 text-gray-800 font-bold">{ch.name}</button>
                           ))}
                         </div>
                       )}
                     </div>
-                    <div className="bg-white/10 rounded-xl p-5">
+                    <div className="bg-white/10 rounded-xl p-5 mb-4">
                       <div className="text-4xl font-bold">{wallet.balance}</div>
                       <div className="text-lg">{c.symbol}</div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 mt-4">
-                      <button onClick={() => setCurrentView('send')} className="bg-white/20 rounded-xl p-3 flex flex-col items-center"><span className="text-2xl">📤</span><span className="text-xs">Send</span></button>
-                      <button onClick={() => setCurrentView('receive')} className="bg-white/20 rounded-xl p-3 flex flex-col items-center"><span className="text-2xl">📥</span><span className="text-xs">Receive</span></button>
-                      <button onClick={() => setCurrentView('history')} className="bg-white/20 rounded-xl p-3 flex flex-col items-center"><span className="text-2xl">📜</span><span className="text-xs">History</span></button>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button onClick={() => setCurrentView('send')} className="bg-white/20 rounded-xl p-3 text-center"><span className="text-2xl block mb-1">📤</span><span className="text-xs">Send</span></button>
+                      <button onClick={() => setCurrentView('receive')} className="bg-white/20 rounded-xl p-3 text-center"><span className="text-2xl block mb-1">📥</span><span className="text-xs">Receive</span></button>
+                      <button onClick={() => setCurrentView('history')} className="bg-white/20 rounded-xl p-3 text-center"><span className="text-2xl block mb-1">📜</span><span className="text-xs">History</span></button>
                     </div>
                   </div>
                   <div className="p-6">
                     {currentView === 'wallet' && (
                       <div className="space-y-4">
                         <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4">
-                          <p className="font-bold text-green-800">✅ REAL {c.name} Address!</p>
+                          <p className="font-bold text-green-800">✅ REAL Address!</p>
                         </div>
                         <div>
-                          <div className="flex justify-between mb-2">
-                            <span className="text-sm font-semibold">Address</span>
-                            <button onClick={() => copyToClipboard(wallet.addresses[wallet.currentChain], 'addr')} className="text-purple-600 text-xs">{copied === 'addr' ? '✅' : '📋 Copy'}</button>
-                          </div>
+                          <button onClick={() => copy(wallet.addresses[wallet.currentChain], 'a')} className="text-purple-600 text-sm mb-2">{copied === 'a' ? '✅ Copied' : '📋 Copy'}</button>
                           <div className="bg-gray-100 rounded-lg p-3 font-mono text-xs break-all">{wallet.addresses[wallet.currentChain]}</div>
                         </div>
-                        {wallet.seedPhrase && (
+                        {wallet.seed && (
                           <button onClick={() => setShowSeedPhrase(!showSeedPhrase)} className="w-full bg-gray-100 p-3 rounded-lg text-left">
-                            <div className="flex justify-between">
-                              <span>🌱 Seed Phrase</span>
+                            <div className="flex justify-between mb-2">
+                              <span className="font-bold">🌱 Seed</span>
                               <span className="text-xs">{showSeedPhrase ? '🙈' : '👁️'}</span>
                             </div>
                             {showSeedPhrase && (
-                              <div className="mt-3 p-3 bg-yellow-50 rounded-lg">
+                              <div className="bg-yellow-50 rounded-lg p-3 mt-2">
                                 <div className="grid grid-cols-3 gap-2">
-                                  {wallet.seedPhrase.split(' ').map((w, i) => (
+                                  {wallet.seed.split(' ').map((w, i) => (
                                     <div key={i} className="bg-white rounded p-2 text-xs">{i+1}. {w}</div>
                                   ))}
                                 </div>
@@ -316,8 +289,8 @@
                         </div>
                         <input type="text" value={sendTo} onChange={(e) => setSendTo(e.target.value)} placeholder="Address" className="w-full border-2 rounded-lg p-3 font-mono text-sm" />
                         <input type="number" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} placeholder="Amount" className="w-full border-2 rounded-lg p-3" />
-                        <button onClick={sendTransaction} disabled={isLoading} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold">{isLoading ? '⏳' : '📤 Send'}</button>
-                        {c.type === 'EVM' && <div className="bg-green-50 p-3 rounded text-sm text-green-800">✅ REAL transactions!</div>}
+                        <button onClick={send} disabled={isLoading} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold">{isLoading ? '⏳ Sending...' : '📤 Send'}</button>
+                        {c.type === 'EVM' && <div className="bg-green-50 border-2 border-green-300 p-3 rounded text-sm text-green-800 font-bold">✅ REAL transactions!</div>}
                       </div>
                     )}
                     {currentView === 'receive' && (
@@ -327,12 +300,12 @@
                           <button onClick={() => setCurrentView('wallet')} className="text-3xl">✕</button>
                         </div>
                         <div className="bg-white border-2 rounded-xl p-6 text-center">
-                          <button onClick={() => setShowQR(!showQR)} className="mb-4 bg-purple-600 text-white px-6 py-3 rounded-lg">{showQR ? '🙈 Hide' : '📱 QR'}</button>
+                          <button onClick={() => setShowQR(!showQR)} className="mb-4 bg-purple-600 text-white px-6 py-3 rounded-lg font-bold">{showQR ? '🙈 Hide QR' : '📱 Show QR'}</button>
                           {showQR && <div ref={qrRef} className="flex justify-center mb-4"></div>}
-                          <div className="bg-gray-100 rounded-lg p-4">
+                          <div className="bg-gray-100 rounded-lg p-4 mb-4">
                             <div className="bg-white rounded-lg p-3 font-mono text-xs break-all border-2">{wallet.addresses[wallet.currentChain]}</div>
                           </div>
-                          <button onClick={() => copyToClipboard(wallet.addresses[wallet.currentChain], 'recv')} className="w-full mt-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-bold">{copied === 'recv' ? '✅' : '📋 Copy'}</button>
+                          <button onClick={() => copy(wallet.addresses[wallet.currentChain], 'r')} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-bold">{copied === 'r' ? '✅ Copied!' : '📋 Copy'}</button>
                         </div>
                       </div>
                     )}
@@ -345,19 +318,19 @@
                         {transactions.filter(t => t.chain === wallet.currentChain).length === 0 ? (
                           <div className="text-center py-16">
                             <div className="text-7xl mb-4">📜</div>
-                            <p className="text-gray-600 font-bold">No transactions yet</p>
+                            <p className="text-gray-600 font-bold">No transactions</p>
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {transactions.filter(t => t.chain === wallet.currentChain).map((tx) => (
+                            {transactions.filter(t => t.chain === wallet.currentChain).map(tx => (
                               <div key={tx.id} className="bg-gray-50 rounded-xl p-4 border-2">
                                 <div className="flex justify-between">
                                   <div>
-                                    <p className="font-bold capitalize">{tx.type} {tx.symbol}</p>
+                                    <p className="font-bold">{tx.type} {tx.symbol}</p>
                                     <p className="text-xs text-gray-500">{new Date(tx.timestamp).toLocaleString()}</p>
                                   </div>
                                   <div className="text-right">
-                                    <p className={`font-bold ${tx.type === 'send' ? 'text-red-600' : 'text-green-600'}`}>{tx.type === 'send' ? '-' : '+'}{tx.amount}</p>
+                                    <p className="font-bold text-red-600">-{tx.amount}</p>
                                     <span className={`text-xs px-2 py-1 rounded-full ${tx.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{tx.status}</span>
                                   </div>
                                 </div>
@@ -372,7 +345,8 @@
               </div>
             </div>
           );
-        };
+        }
+
         ReactDOM.render(<BaintWallet />, document.getElementById('root'));
     </script>
 </body>
