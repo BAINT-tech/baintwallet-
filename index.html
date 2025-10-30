@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaintWallet Pro v2.0</title>
+    <title>BaintWallet v3.0 - Real Features Only</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -18,7 +18,7 @@
         const { useState, useEffect, useRef } = React;
         
         function App() {
-          // ========== YOUR EXISTING STATE (UNCHANGED) ==========
+          // ========== STATE ==========
           const [wallet, setWallet] = useState(null);
           const [loading, setLoading] = useState(false);
           const [message, setMessage] = useState('');
@@ -30,92 +30,116 @@
           const [chain, setChain] = useState('ETH');
           const [txs, setTxs] = useState([]);
           const [showSeed, setShowSeed] = useState(false);
+          const [tokens, setTokens] = useState([]);
+          const [loadingTokens, setLoadingTokens] = useState(false);
+          const [selectedToken, setSelectedToken] = useState(null);
+          const [sendTokenAmount, setSendTokenAmount] = useState('');
+          const [prices, setPrices] = useState({});
           const qrRef = useRef(null);
 
-          // ========== NEW STATE FOR SWAP & BRIDGE ==========
-          const [swapFromToken, setSwapFromToken] = useState('ETH');
-          const [swapToToken, setSwapToToken] = useState('USDT');
-          const [swapAmount, setSwapAmount] = useState('');
-          const [swapQuote, setSwapQuote] = useState(null);
-          const [swapLoading, setSwapLoading] = useState(false);
-          
-          const [bridgeFromChain, setBridgeFromChain] = useState('ETH');
-          const [bridgeToChain, setBridgeToChain] = useState('BNB');
-          const [bridgeAmount, setBridgeAmount] = useState('');
-          const [bridgeFee, setBridgeFee] = useState('0');
-          const [bridgeLoading, setBridgeLoading] = useState(false);
-
-          // ========== YOUR EXISTING CHAINS (UNCHANGED) ==========
+          // ========== CHAIN CONFIGS ==========
           const chains = {
             ETH: {
               name: 'Ethereum',
               symbol: 'ETH',
-              testnet: { rpc: 'https://ethereum-sepolia-rpc.publicnode.com', explorer: 'https://sepolia.etherscan.io', chainId: 11155111 },
-              mainnet: { rpc: 'https://ethereum-rpc.publicnode.com', explorer: 'https://etherscan.io', chainId: 1 }
+              testnet: { 
+                rpc: 'https://ethereum-sepolia-rpc.publicnode.com', 
+                explorer: 'https://sepolia.etherscan.io', 
+                chainId: 11155111 
+              },
+              mainnet: { 
+                rpc: 'https://ethereum-rpc.publicnode.com', 
+                explorer: 'https://etherscan.io', 
+                chainId: 1 
+              }
             },
             BNB: {
               name: 'BNB Chain',
               symbol: 'BNB',
-              testnet: { rpc: 'https://bsc-testnet-rpc.publicnode.com', explorer: 'https://testnet.bscscan.com', chainId: 97 },
-              mainnet: { rpc: 'https://bsc-rpc.publicnode.com', explorer: 'https://bscscan.com', chainId: 56 }
+              testnet: { 
+                rpc: 'https://bsc-testnet-rpc.publicnode.com', 
+                explorer: 'https://testnet.bscscan.com', 
+                chainId: 97 
+              },
+              mainnet: { 
+                rpc: 'https://bsc-rpc.publicnode.com', 
+                explorer: 'https://bscscan.com', 
+                chainId: 56 
+              }
             },
             AVAX: {
               name: 'Avalanche',
               symbol: 'AVAX',
-              testnet: { rpc: 'https://api.avax-test.network/ext/bc/C/rpc', explorer: 'https://testnet.snowtrace.io', chainId: 43113 },
-              mainnet: { rpc: 'https://api.avax.network/ext/bc/C/rpc', explorer: 'https://snowtrace.io', chainId: 43114 }
+              testnet: { 
+                rpc: 'https://api.avax-test.network/ext/bc/C/rpc', 
+                explorer: 'https://testnet.snowtrace.io', 
+                chainId: 43113 
+              },
+              mainnet: { 
+                rpc: 'https://api.avax.network/ext/bc/C/rpc', 
+                explorer: 'https://snowtrace.io', 
+                chainId: 43114 
+              }
             },
             BASE: {
               name: 'Base',
               symbol: 'ETH',
-              testnet: { rpc: 'https://sepolia.base.org', explorer: 'https://sepolia.basescan.org', chainId: 84532 },
-              mainnet: { rpc: 'https://mainnet.base.org', explorer: 'https://basescan.org', chainId: 8453 }
+              testnet: { 
+                rpc: 'https://sepolia.base.org', 
+                explorer: 'https://sepolia.basescan.org', 
+                chainId: 84532 
+              },
+              mainnet: { 
+                rpc: 'https://mainnet.base.org', 
+                explorer: 'https://basescan.org', 
+                chainId: 8453 
+              }
             },
             POLYGON: {
               name: 'Polygon',
               symbol: 'MATIC',
-              testnet: { rpc: 'https://rpc-amoy.polygon.technology', explorer: 'https://amoy.polygonscan.com', chainId: 80002 },
-              mainnet: { rpc: 'https://polygon-rpc.com', explorer: 'https://polygonscan.com', chainId: 137 }
-            }
-          };
-
-          // ========== NEW: TOKEN DEFINITIONS ==========
-          const tokens = {
-            ETH: { symbol: 'ETH', name: 'Ethereum', decimals: 18, isNative: true },
-            BNB: { symbol: 'BNB', name: 'BNB', decimals: 18, isNative: true },
-            USDT: { 
-              symbol: 'USDT', 
-              name: 'Tether USD', 
-              decimals: 6,
-              addresses: {
-                ETH: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-                BNB: '0x55d398326f99059fF775485246999027B3197955',
-                POLYGON: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'
-              }
-            },
-            USDC: { 
-              symbol: 'USDC', 
-              name: 'USD Coin', 
-              decimals: 6,
-              addresses: {
-                ETH: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-                BNB: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
-                POLYGON: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'
-              }
-            },
-            DAI: { 
-              symbol: 'DAI', 
-              name: 'Dai Stablecoin', 
-              decimals: 18,
-              addresses: {
-                ETH: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-                BNB: '0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3',
-                POLYGON: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063'
+              testnet: { 
+                rpc: 'https://rpc-amoy.polygon.technology', 
+                explorer: 'https://amoy.polygonscan.com', 
+                chainId: 80002 
+              },
+              mainnet: { 
+                rpc: 'https://polygon-rpc.com', 
+                explorer: 'https://polygonscan.com', 
+                chainId: 137 
               }
             }
           };
 
-          // ========== YOUR EXISTING FUNCTIONS (100% UNCHANGED) ==========
+          // ========== TOKEN ADDRESSES (MAINNET) ==========
+          const TOKEN_ADDRESSES = {
+            ETH: {
+              USDT: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              DAI: '0x6B175474E89094C44Da98b954EedeAC495271d0F'
+            },
+            BNB: {
+              USDT: '0x55d398326f99059fF775485246999027B3197955',
+              USDC: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+              BUSD: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56'
+            },
+            POLYGON: {
+              USDT: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
+              USDC: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+              DAI: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063'
+            }
+          };
+
+          // ========== ERC20 ABI ==========
+          const ERC20_ABI = [
+            "function balanceOf(address) view returns (uint256)",
+            "function decimals() view returns (uint8)",
+            "function symbol() view returns (string)",
+            "function transfer(address to, uint256 amount) returns (bool)",
+            "function name() view returns (string)"
+          ];
+
+          // ========== HELPER FUNCTIONS ==========
           const showMsg = (msg, type = 'info') => {
             setMessage(msg);
             setTimeout(() => setMessage(''), 4000);
@@ -130,6 +154,30 @@
             return new ethers.providers.JsonRpcProvider(getRpc());
           };
 
+          const getExplorer = () => {
+            const c = chains[chain];
+            return isTestnet ? c.testnet.explorer : c.mainnet.explorer;
+          };
+
+          // ========== FETCH PRICES (REAL) ==========
+          const fetchPrices = async () => {
+            try {
+              // Using CoinGecko free API (no key needed)
+              const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum,binancecoin,avalanche-2,matic-network&vs_currencies=usd');
+              const data = await response.json();
+              
+              setPrices({
+                ETH: data.ethereum?.usd || 0,
+                BNB: data.binancecoin?.usd || 0,
+                AVAX: data['avalanche-2']?.usd || 0,
+                MATIC: data['matic-network']?.usd || 0
+              });
+            } catch (e) {
+              console.error('Price fetch error:', e);
+            }
+          };
+
+          // ========== WALLET FUNCTIONS (YOUR WORKING CODE) ==========
           const createWallet = async () => {
             setLoading(true);
             try {
@@ -146,6 +194,7 @@
               
               showMsg('✅ Wallet created!', 'success');
               setView('wallet');
+              fetchPrices();
             } catch (e) {
               showMsg('❌ Error: ' + e.message, 'error');
             }
@@ -174,6 +223,7 @@
               showMsg('✅ Wallet imported!', 'success');
               setSeedInput('');
               setView('wallet');
+              fetchPrices();
             } catch (e) {
               showMsg('❌ Invalid seed phrase', 'error');
             }
@@ -186,6 +236,10 @@
               const provider = getProvider();
               const balance = await provider.getBalance(wallet.address);
               setWallet({...wallet, balance: ethers.utils.formatEther(balance)});
+              fetchPrices();
+              if (!isTestnet) {
+                loadTokenBalances();
+              }
             } catch (e) {
               console.error(e);
             }
@@ -220,7 +274,9 @@
                 amount: sendAmount,
                 time: new Date().toLocaleString(),
                 status: 'pending',
-                type: 'send'
+                type: 'send',
+                chain: chain,
+                symbol: chains[chain].symbol
               }, ...txs]);
 
               tx.wait().then(() => {
@@ -238,178 +294,97 @@
             setLoading(false);
           };
 
-          // ========== NEW FEATURE: SWAP FUNCTIONS ==========
-          const getSwapQuote = async () => {
-            if (!swapAmount || parseFloat(swapAmount) <= 0) return;
+          // ========== NEW: REAL TOKEN FUNCTIONS ==========
+          const loadTokenBalances = async () => {
+            if (!wallet || isTestnet) return;
             
-            setSwapLoading(true);
-            try {
-              const currentChainId = isTestnet ? chains[chain].testnet.chainId : chains[chain].mainnet.chainId;
-              
-              // Simulate swap quote (in production, use 1inch API)
-              const fromToken = tokens[swapFromToken];
-              const toToken = tokens[swapToToken];
-              
-              // Calculate rate based on token prices
-              const rates = {
-                ETH: 2000,
-                BNB: 300,
-                USDT: 1,
-                USDC: 1,
-                DAI: 1
-              };
-              
-              const fromPrice = rates[swapFromToken];
-              const toPrice = rates[swapToToken];
-              const outputAmount = (parseFloat(swapAmount) * fromPrice / toPrice * 0.997).toFixed(6); // 0.3% fee
-              
-              setSwapQuote({
-                fromAmount: swapAmount,
-                toAmount: outputAmount,
-                rate: (fromPrice / toPrice).toFixed(4),
-                fee: '0.3%',
-                priceImpact: '0.1%'
-              });
-            } catch (e) {
-              showMsg('❌ Failed to get quote', 'error');
-            }
-            setSwapLoading(false);
-          };
+            setLoadingTokens(true);
+            const tokenAddresses = TOKEN_ADDRESSES[chain] || {};
+            const tokenList = [];
 
-          const executeSwap = async () => {
-            if (!swapQuote) {
-              showMsg('❌ Get a quote first', 'error');
-              return;
-            }
-
-            setLoading(true);
-            setSwapLoading(true);
-            
             try {
               const provider = getProvider();
-              const signer = new ethers.Wallet(wallet.privateKey, provider);
               
-              // For native token swaps
-              if (tokens[swapFromToken].isNative) {
-                // In production, this would interact with Uniswap/PancakeSwap router
-                // For now, we'll simulate the swap
-                showMsg('⏳ Executing swap on DEX...', 'info');
-                
-                // Simulate transaction
-                const tx = await signer.sendTransaction({
-                  to: '0x1111111254EEB25477B68fb85Ed929f73A960582', // 1inch router (example)
-                  value: ethers.utils.parseEther(swapAmount),
-                  data: '0x' // In production, this would be the swap calldata
-                });
+              for (const [symbol, address] of Object.entries(tokenAddresses)) {
+                try {
+                  const contract = new ethers.Contract(address, ERC20_ABI, provider);
+                  const [balance, decimals, name] = await Promise.all([
+                    contract.balanceOf(wallet.address),
+                    contract.decimals(),
+                    contract.name()
+                  ]);
 
-                showMsg('✅ Swap executed! Hash: ' + tx.hash.substring(0, 10) + '...', 'success');
-                
-                setTxs([{
-                  hash: tx.hash,
-                  from: swapFromToken,
-                  to: swapToToken,
-                  amount: swapAmount,
-                  received: swapQuote.toAmount,
-                  time: new Date().toLocaleString(),
-                  status: 'pending',
-                  type: 'swap'
-                }, ...txs]);
-
-                tx.wait().then(() => {
-                  setTxs(prev => prev.map(t => t.hash === tx.hash ? {...t, status: 'confirmed'} : t));
-                  showMsg('✅ Swap confirmed!', 'success');
-                  refreshBalance();
-                });
-
-                setSwapAmount('');
-                setSwapQuote(null);
-                setView('wallet');
-              } else {
-                // For token swaps, would need approval first
-                showMsg('⚠️ Token swaps require approval. Coming soon!', 'warning');
+                  const formattedBalance = ethers.utils.formatUnits(balance, decimals);
+                  
+                  if (parseFloat(formattedBalance) > 0) {
+                    tokenList.push({
+                      symbol,
+                      name,
+                      address,
+                      balance: formattedBalance,
+                      decimals
+                    });
+                  }
+                } catch (e) {
+                  console.error(`Error loading ${symbol}:`, e);
+                }
               }
-              
+
+              setTokens(tokenList);
             } catch (e) {
-              showMsg('❌ Swap failed: ' + e.message, 'error');
+              console.error('Token loading error:', e);
             }
             
-            setLoading(false);
-            setSwapLoading(false);
+            setLoadingTokens(false);
           };
 
-          // ========== NEW FEATURE: BRIDGE FUNCTIONS ==========
-          const calculateBridgeFee = () => {
-            if (!bridgeAmount || parseFloat(bridgeAmount) <= 0) return;
-            
-            // Bridge fee is typically 0.1% + gas
-            const fee = (parseFloat(bridgeAmount) * 0.001).toFixed(6);
-            setBridgeFee(fee);
-          };
-
-          const executeBridge = async () => {
-            if (!bridgeAmount || parseFloat(bridgeAmount) <= 0) {
-              showMsg('❌ Enter bridge amount', 'error');
+          const sendToken = async () => {
+            if (!selectedToken || !sendTo || !sendTokenAmount) {
+              showMsg('❌ Fill all fields', 'error');
               return;
             }
 
-            if (bridgeFromChain === bridgeToChain) {
-              showMsg('❌ Cannot bridge to same chain', 'error');
+            if (!ethers.utils.isAddress(sendTo)) {
+              showMsg('❌ Invalid address', 'error');
               return;
             }
 
             setLoading(true);
-            setBridgeLoading(true);
-            
             try {
               const provider = getProvider();
               const signer = new ethers.Wallet(wallet.privateKey, provider);
+              const contract = new ethers.Contract(selectedToken.address, ERC20_ABI, signer);
               
-              showMsg('⏳ Initiating cross-chain bridge...', 'info');
-              
-              // In production, this would interact with LayerZero/Stargate
-              // For now, we simulate by sending to bridge contract
-              const tx = await signer.sendTransaction({
-                to: '0x8731d54E9D02c286767d56ac03e8037C07e01e98', // Stargate router (example)
-                value: ethers.utils.parseEther(bridgeAmount),
-                data: '0x' // In production, this would be bridge calldata
-              });
+              const amount = ethers.utils.parseUnits(sendTokenAmount, selectedToken.decimals);
+              const tx = await contract.transfer(sendTo, amount);
 
-              const receivedAmount = (parseFloat(bridgeAmount) - parseFloat(bridgeFee)).toFixed(6);
-              
-              showMsg('✅ Bridge initiated! Hash: ' + tx.hash.substring(0, 10) + '...', 'success');
+              showMsg(`✅ ${selectedToken.symbol} sent! Hash: ${tx.hash.substring(0, 10)}...`, 'success');
               
               setTxs([{
                 hash: tx.hash,
-                fromChain: bridgeFromChain,
-                toChain: bridgeToChain,
-                amount: bridgeAmount,
-                received: receivedAmount,
-                fee: bridgeFee,
+                to: sendTo,
+                amount: sendTokenAmount,
                 time: new Date().toLocaleString(),
                 status: 'pending',
-                type: 'bridge'
+                type: 'token-send',
+                chain: chain,
+                symbol: selectedToken.symbol
               }, ...txs]);
 
-              // Simulate bridge confirmation (takes longer than normal tx)
-              setTimeout(() => {
-                setTxs(prev => prev.map(t => 
-                  t.hash === tx.hash 
-                    ? {...t, status: 'confirmed'} 
-                    : t
-                ));
-                showMsg('✅ Bridge completed! Funds available on ' + chains[bridgeToChain].name, 'success');
-              }, 5000);
+              tx.wait().then(() => {
+                setTxs(prev => prev.map(t => t.hash === tx.hash ? {...t, status: 'confirmed'} : t));
+                showMsg('✅ Token transfer confirmed!', 'success');
+                loadTokenBalances();
+              });
 
-              setBridgeAmount('');
-              setBridgeFee('0');
+              setSendTo('');
+              setSendTokenAmount('');
+              setSelectedToken(null);
               setView('wallet');
-              
             } catch (e) {
-              showMsg('❌ Bridge failed: ' + e.message, 'error');
+              showMsg('❌ Token send failed: ' + e.message, 'error');
             }
-            
             setLoading(false);
-            setBridgeLoading(false);
           };
 
           // ========== EFFECTS ==========
@@ -425,32 +400,46 @@
           }, [view, wallet]);
 
           useEffect(() => {
-            if (swapAmount && swapFromToken !== swapToToken) {
-              const timer = setTimeout(() => getSwapQuote(), 500);
-              return () => clearTimeout(timer);
+            if (wallet && !isTestnet) {
+              loadTokenBalances();
             }
-          }, [swapAmount, swapFromToken, swapToToken]);
+          }, [wallet, chain, isTestnet]);
 
           useEffect(() => {
-            if (bridgeAmount) {
-              calculateBridgeFee();
-            }
-          }, [bridgeAmount, bridgeFromChain, bridgeToChain]);
+            fetchPrices();
+            const interval = setInterval(fetchPrices, 60000); // Update prices every minute
+            return () => clearInterval(interval);
+          }, []);
 
-          // ========== RENDER: WALLET SETUP (UNCHANGED) ==========
+          useEffect(() => {
+            const savedTxs = localStorage.getItem('baintwallet_txs');
+            if (savedTxs) {
+              try {
+                setTxs(JSON.parse(savedTxs));
+              } catch (e) {}
+            }
+          }, []);
+
+          useEffect(() => {
+            if (txs.length > 0) {
+              localStorage.setItem('baintwallet_txs', JSON.stringify(txs));
+            }
+          }, [txs]);
+
+          // ========== RENDER: SETUP ==========
           if (!wallet) {
             return (
               <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
                   <div className="text-center mb-8">
                     <div className="text-6xl mb-4">💎</div>
-                    <h1 className="text-3xl font-bold mb-2">BaintWallet Pro</h1>
-                    <p className="text-green-600 font-bold">✅ REAL EVM WALLET</p>
-                    <p className="text-xs text-purple-600 font-bold mt-1">+ Swap & Bridge</p>
+                    <h1 className="text-3xl font-bold mb-2">BaintWallet v3.0</h1>
+                    <p className="text-green-600 font-bold">✅ 100% REAL FEATURES</p>
+                    <p className="text-xs text-gray-600 mt-2">No Fake Swaps • No Fake Bridges • Only Real Blockchain</p>
                   </div>
 
                   {message && (
-                    <div className="mb-4 p-3 bg-blue-100 rounded-lg text-center font-bold">
+                    <div className="mb-4 p-3 bg-blue-100 rounded-lg text-center font-bold text-sm">
                       {message}
                     </div>
                   )}
@@ -470,7 +459,7 @@
                         <button
                           key={c}
                           onClick={() => setChain(c)}
-                          className={`p-3 rounded-lg border-2 font-bold ${chain === c ? 'border-purple-600 bg-purple-50' : 'border-gray-200'}`}
+                          className={`p-3 rounded-lg border-2 font-bold transition ${chain === c ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}
                         >
                           {c}
                         </button>
@@ -481,13 +470,13 @@
                   <div className="flex gap-2 mb-6">
                     <button
                       onClick={() => setView('create')}
-                      className={`flex-1 py-3 rounded-lg font-bold ${view === 'create' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}
+                      className={`flex-1 py-3 rounded-lg font-bold transition ${view === 'create' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}
                     >
                       Create
                     </button>
                     <button
                       onClick={() => setView('import')}
-                      className={`flex-1 py-3 rounded-lg font-bold ${view === 'import' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}
+                      className={`flex-1 py-3 rounded-lg font-bold transition ${view === 'import' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}
                     >
                       Import
                     </button>
@@ -497,7 +486,7 @@
                     <button
                       onClick={createWallet}
                       disabled={loading}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-lg font-bold disabled:opacity-50"
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-lg font-bold disabled:opacity-50 hover:shadow-lg transition"
                     >
                       {loading ? '⏳ Creating...' : '🚀 Create Wallet'}
                     </button>
@@ -513,7 +502,7 @@
                       <button
                         onClick={importWallet}
                         disabled={loading}
-                        className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold disabled:opacity-50"
+                        className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold disabled:opacity-50 hover:bg-purple-700 transition"
                       >
                         {loading ? '⏳ Importing...' : '📥 Import'}
                       </button>
@@ -525,8 +514,10 @@
           }
 
           const currentChain = chains[chain];
+          const currentPrice = prices[chain === 'BASE' ? 'ETH' : chain] || 0;
+          const usdValue = (parseFloat(wallet.balance) * currentPrice).toFixed(2);
 
-          // ========== RENDER: MAIN WALLET (WITH NEW SWAP & BRIDGE) ==========
+          // ========== RENDER: MAIN WALLET ==========
           return (
             <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
               {message && (
@@ -537,15 +528,16 @@
 
               <div className="max-w-2xl mx-auto">
                 <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                  {/* Header */}
                   <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
                     <div className="flex justify-between mb-4">
                       <div>
-                        <h1 className="text-2xl font-bold">💎 BaintWallet Pro</h1>
-                        <p className="text-xs opacity-90">v2.0 - Swap & Bridge</p>
+                        <h1 className="text-2xl font-bold">💎 BaintWallet</h1>
+                        <p className="text-xs opacity-90">v3.0 - Real Features Only</p>
                       </div>
                       <button
                         onClick={() => setIsTestnet(!isTestnet)}
-                        className="bg-white/20 px-3 py-1 rounded-lg text-sm font-bold"
+                        className="bg-white/20 px-3 py-1 rounded-lg text-sm font-bold hover:bg-white/30 transition"
                       >
                         {isTestnet ? '🧪 Test' : '🌐 Main'}
                       </button>
@@ -554,8 +546,11 @@
                     <div className="mb-4">
                       <select
                         value={chain}
-                        onChange={(e) => setChain(e.target.value)}
-                        className="w-full bg-white/20 rounded-lg p-3 font-bold text-white"
+                        onChange={(e) => {
+                          setChain(e.target.value);
+                          setTokens([]);
+                        }}
+                        className="w-full bg-white/20 rounded-lg p-3 font-bold text-white backdrop-blur"
                       >
                         {Object.entries(chains).map(([key, c]) => (
                           <option key={key} value={key} className="text-gray-800">{c.name}</option>
@@ -563,54 +558,61 @@
                       </select>
                     </div>
 
-                    <div className="bg-white/10 rounded-xl p-5 mb-4">
-                      <div className="text-4xl font-bold">{parseFloat(wallet.balance).toFixed(4)}</div>
-                      <div className="text-lg">{currentChain.symbol}</div>
+                    {/* Balance Display */}
+                    <div className="bg-white/10 rounded-xl p-5 mb-4 backdrop-blur">
+                      <div className="flex items-baseline gap-2">
+                        <div className="text-4xl font-bold">{parseFloat(wallet.balance).toFixed(4)}</div>
+                      </div>
+                      <div className="text-lg mt-1">{currentChain.symbol}</div>
+                      {currentPrice > 0 && (
+                        <div className="text-sm mt-2 opacity-90">
+                          ≈ ${usdValue} USD
+                        </div>
+                      )}
                     </div>
 
-                    {/* ========== NEW: ADDED SWAP & BRIDGE BUTTONS ========== */}
-                    <div className="grid grid-cols-6 gap-2">
-                      <button onClick={() => setView('send')} className="bg-white/20 rounded-xl p-3 text-center">
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-4 gap-2">
+                      <button onClick={() => setView('send')} className="bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
                         <div className="text-2xl">📤</div>
                         <div className="text-xs">Send</div>
                       </button>
-                      <button onClick={() => setView('receive')} className="bg-white/20 rounded-xl p-3 text-center">
+                      <button onClick={() => setView('receive')} className="bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
                         <div className="text-2xl">📥</div>
                         <div className="text-xs">Receive</div>
                       </button>
-                      <button onClick={() => setView('history')} className="bg-white/20 rounded-xl p-3 text-center">
+                      <button onClick={() => setView('history')} className="bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition">
                         <div className="text-2xl">📜</div>
                         <div className="text-xs">History</div>
                       </button>
-                      <button onClick={() => setView('swap')} className="bg-white/20 rounded-xl p-3 text-center">
-                        <div className="text-2xl">🔄</div>
-                        <div className="text-xs">Swap</div>
-                      </button>
-                      <button onClick={() => setView('bridge')} className="bg-white/20 rounded-xl p-3 text-center">
-                        <div className="text-2xl">🌉</div>
-                        <div className="text-xs">Bridge</div>
-                      </button>
-                      <button onClick={refreshBalance} className="bg-white/20 rounded-xl p-3 text-center">
-                        <div className="text-2xl">🔄</div>
+                      <button onClick={refreshBalance} disabled={loading} className="bg-white/20 rounded-xl p-3 text-center hover:bg-white/30 transition disabled:opacity-50">
+                        <div className="text-2xl">{loading ? '⏳' : '🔄'}</div>
                         <div className="text-xs">Refresh</div>
                       </button>
                     </div>
                   </div>
 
-                  {/* ========== CONTENT AREA ========== */}
+                  {/* Content */}
                   <div className="p-6">
-                    {/* ========== YOUR EXISTING VIEWS (UNCHANGED) ========== */}
+                    {/* Wallet View */}
                     {view === 'wallet' && (
                       <div className="space-y-4">
                         <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4">
                           <p className="font-bold text-green-800">✅ Connected to {currentChain.name}</p>
-                          <p className="text-xs text-green-700 mt-1">Swap & Bridge features now available!</p>
+                          <p className="text-xs text-green-700 mt-1">Real blockchain • Real transactions • No fake features</p>
                         </div>
 
+                        {/* Address */}
                         <div>
                           <div className="flex justify-between mb-2">
-                            <span className="font-bold">Address</span>
-                            <button onClick={() => {navigator.clipboard.writeText(wallet.address); showMsg('✅ Copied!')}} className="text-purple-600 font-bold text-sm">
+                            <span className="font-bold text-gray-700">Address</span>
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(wallet.address); 
+                                showMsg('✅ Copied!')
+                              }} 
+                              className="text-purple-600 font-bold text-sm hover:text-purple-700"
+                            >
                               📋 Copy
                             </button>
                           </div>
@@ -619,27 +621,79 @@
                           </div>
                         </div>
 
+                        {/* Token Balances (Mainnet Only) */}
+                        {!isTestnet && (
+                          <div>
+                            <div className="flex justify-between items-center mb-3">
+                              <h3 className="font-bold text-gray-700 text-lg">Tokens</h3>
+                              <button 
+                                onClick={loadTokenBalances}
+                                disabled={loadingTokens}
+                                className="text-purple-600 font-bold text-sm hover:text-purple-700 disabled:opacity-50"
+                              >
+                                {loadingTokens ? '⏳ Loading...' : '🔄 Refresh'}
+                              </button>
+                            </div>
+
+                            {tokens.length === 0 && !loadingTokens ? (
+                              <div className="bg-gray-50 rounded-xl p-6 text-center border-2">
+                                <div className="text-4xl mb-2">🪙</div>
+                                <p className="text-gray-600 text-sm">No tokens found</p>
+                                <p className="text-xs text-gray-500 mt-1">Get some USDT, USDC or DAI to see them here</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {tokens.map((token, idx) => (
+                                  <div key={idx} className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 flex justify-between items-center border-2 border-blue-200">
+                                    <div>
+                                      <div className="font-bold text-gray-800">{token.symbol}</div>
+                                      <div className="text-xs text-gray-600">{token.name}</div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-bold text-gray-800">{parseFloat(token.balance).toFixed(4)}</div>
+                                      <button 
+                                        onClick={() => {
+                                          setSelectedToken(token);
+                                          setView('send-token');
+                                        }}
+                                        className="text-xs text-purple-600 font-bold hover:underline mt-1"
+                                      >
+                                        Send →
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Seed Phrase */}
                         <button
                           onClick={() => setShowSeed(!showSeed)}
-                          className="w-full bg-red-50 border-2 border-red-300 p-4 rounded-xl text-left"
+                          className="w-full bg-red-50 border-2 border-red-300 p-4 rounded-xl text-left hover:bg-red-100 transition"
                         >
                           <div className="flex justify-between mb-2">
-                            <span className="font-bold text-red-700">🔐 Seed Phrase</span>
+                            <span className="font-bold text-red-700">🔐 Recovery Phrase</span>
                             <span className="text-2xl">{showSeed ? '🙈' : '👁️'}</span>
                           </div>
                           {showSeed && (
                             <div className="mt-3 bg-white rounded-lg p-3 border-2 border-red-400">
-                              <p className="text-xs text-red-600 font-bold mb-2">⚠️ Never share!</p>
+                              <p className="text-xs text-red-600 font-bold mb-2">⚠️ Never share with anyone!</p>
                               <div className="grid grid-cols-3 gap-2">
                                 {wallet.mnemonic.split(' ').map((w, i) => (
-                                  <div key={i} className="bg-gray-50 p-2 rounded text-xs font-mono">
+                                  <div key={i} className="bg-gray-50 p-2 rounded text-xs font-mono border">
                                     {i + 1}. {w}
                                   </div>
                                 ))}
                               </div>
                               <button
-                                onClick={(e) => {e.stopPropagation(); navigator.clipboard.writeText(wallet.mnemonic); showMsg('✅ Copied!')}}
-                                className="w-full mt-3 bg-red-600 text-white py-2 rounded font-bold"
+                                onClick={(e) => {
+                                  e.stopPropagation(); 
+                                  navigator.clipboard.writeText(wallet.mnemonic); 
+                                  showMsg('✅ Seed copied!')
+                                }}
+                                className="w-full mt-3 bg-red-600 text-white py-2 rounded font-bold hover:bg-red-700 transition"
                               >
                                 📋 Copy Phrase
                               </button>
@@ -647,36 +701,55 @@
                           )}
                         </button>
 
+                        {/* Faucets for Testnet */}
                         {isTestnet && (
                           <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4">
                             <p className="font-bold text-blue-800 mb-2">🚰 Get Testnet Funds:</p>
-                            {chain === 'ETH' && <a href="https://sepoliafaucet.com/" target="_blank" className="text-blue-600 underline text-sm">Sepolia Faucet →</a>}
-                            {chain === 'BNB' && <a href="https://testnet.bnbchain.org/faucet-smart" target="_blank" className="text-blue-600 underline text-sm">BSC Faucet →</a>}
-                            {chain === 'AVAX' && <a href="https://faucet.avax.network/" target="_blank" className="text-blue-600 underline text-sm">Fuji Faucet →</a>}
-                            {chain === 'BASE' && <a href="https://www.alchemy.com/faucets/base-sepolia" target="_blank" className="text-blue-600 underline text-sm">Base Faucet →</a>}
-                            {chain === 'POLYGON' && <a href="https://faucet.polygon.technology/" target="_blank" className="text-blue-600 underline text-sm">Polygon Faucet →</a>}
+                            {chain === 'ETH' && <a href="https://sepoliafaucet.com/" target="_blank" rel="noopener"className="text-blue-600 underline text-sm block">Sepolia Faucet →</a>}
+                            {chain === 'BNB' && <a href="https://testnet.bnbchain.org/faucet-smart" target="_blank" rel="noopener" className="text-blue-600 underline text-sm block">BSC Faucet →</a>}
+                            {chain === 'AVAX' && <a href="https://faucet.avax.network/" target="_blank" rel="noopener" className="text-blue-600 underline text-sm block">Fuji Faucet →</a>}
+                            {chain === 'BASE' && <a href="https://www.alchemy.com/faucets/base-sepolia" target="_blank" rel="noopener" className="text-blue-600 underline text-sm block">Base Faucet →</a>}
+                            {chain === 'POLYGON' && <a href="https://faucet.polygon.technology/" target="_blank" rel="noopener" className="text-blue-600 underline text-sm block">Polygon Faucet →</a>}
                           </div>
                         )}
+
+                        {/* External Links */}
+                        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-4">
+                          <p className="font-bold text-yellow-800 mb-2">🔗 Need Swap or Bridge?</p>
+                          <p className="text-xs text-yellow-700 mb-3">Use these trusted platforms:</p>
+                          <div className="space-y-2">
+                            <a href="https://app.uniswap.org" target="_blank" rel="noopener" className="block text-sm text-blue-600 hover:text-blue-700 font-bold">
+                              🔄 Uniswap - Token Swaps →
+                            </a>
+                            <a href="https://pancakeswap.finance/swap" target="_blank" rel="noopener" className="block text-sm text-blue-600 hover:text-blue-700 font-bold">
+                              🥞 PancakeSwap - BSC Swaps →
+                            </a>
+                            <a href="https://stargate.finance/bridge" target="_blank" rel="noopener" className="block text-sm text-blue-600 hover:text-blue-700 font-bold">
+                              🌉 Stargate - Cross-Chain Bridge →
+                            </a>
+                          </div>
+                        </div>
                       </div>
                     )}
 
+                    {/* Send View */}
                     {view === 'send' && (
                       <div className="space-y-4">
                         <div className="flex justify-between mb-4">
-                          <h2 className="text-2xl font-bold">📤 Send</h2>
-                          <button onClick={() => setView('wallet')} className="text-3xl">✕</button>
+                          <h2 className="text-2xl font-bold text-gray-800">📤 Send {currentChain.symbol}</h2>
+                          <button onClick={() => setView('wallet')} className="text-3xl text-gray-400 hover:text-red-500 transition">✕</button>
                         </div>
 
                         <div className="bg-green-50 border-2 border-green-300 p-3 rounded-xl">
-                          <p className="font-bold text-green-800">✅ Real Transaction</p>
+                          <p className="font-bold text-green-800">✅ Real Blockchain Transaction</p>
                         </div>
 
                         <input
                           type="text"
                           value={sendTo}
                           onChange={(e) => setSendTo(e.target.value)}
-                          placeholder="Recipient address"
-                          className="w-full border-2 rounded-lg p-3 font-mono text-sm"
+                          placeholder="Recipient address (0x...)"
+                          className="w-full border-2 rounded-lg p-3 font-mono text-sm focus:border-purple-500 outline-none"
                         />
 
                         <input
@@ -685,12 +758,15 @@
                           value={sendAmount}
                           onChange={(e) => setSendAmount(e.target.value)}
                           placeholder="Amount"
-                          className="w-full border-2 rounded-lg p-3 text-lg"
+                          className="w-full border-2 rounded-lg p-3 text-lg focus:border-purple-500 outline-none"
                         />
 
-                        <div className="flex justify-between text-sm">
-                          <span>Balance: {parseFloat(wallet.balance).toFixed(4)}</span>
-                          <button onClick={() => setSendAmount((parseFloat(wallet.balance) - 0.001).toFixed(4))} className="text-purple-600 font-bold">
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>Balance: {parseFloat(wallet.balance).toFixed(4)} {currentChain.symbol}</span>
+                          <button 
+                            onClick={() => setSendAmount((parseFloat(wallet.balance) - 0.001).toFixed(4))} 
+                            className="text-purple-600 font-bold hover:text-purple-700"
+                          >
                             Max
                           </button>
                         </div>
@@ -698,351 +774,143 @@
                         <button
                           onClick={send}
                           disabled={loading || !sendTo || !sendAmount}
-                          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold disabled:opacity-50"
+                          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 hover:shadow-lg transition"
                         >
-                          {loading ? '⏳ Sending...' : '📤 Send'}
+                          {loading ? '⏳ Sending...' : '📤 Send Transaction'}
                         </button>
                       </div>
                     )}
 
+                    {/* Send Token View */}
+                    {view === 'send-token' && selectedToken && (
+                      <div className="space-y-4">
+                        <div className="flex justify-between mb-4">
+                          <h2 className="text-2xl font-bold text-gray-800">📤 Send {selectedToken.symbol}</h2>
+                          <button onClick={() => {setView('wallet'); setSelectedToken(null);}} className="text-3xl text-gray-400 hover:text-red-500 transition">✕</button>
+                        </div>
+
+                        <div className="bg-blue-50 border-2 border-blue-300 p-3 rounded-xl">
+                          <p className="font-bold text-blue-800">✅ Real Token Transfer</p>
+                          <p className="text-xs text-blue-700 mt-1">Sending {selectedToken.name}</p>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={sendTo}
+                          onChange={(e) => setSendTo(e.target.value)}
+                          placeholder="Recipient address (0x...)"
+                          className="w-full border-2 rounded-lg p-3 font-mono text-sm focus:border-purple-500 outline-none"
+                        />
+
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={sendTokenAmount}
+                          onChange={(e) => setSendTokenAmount(e.target.value)}
+                          placeholder="Amount"
+                          className="w-full border-2 rounded-lg p-3 text-lg focus:border-purple-500 outline-none"
+                        />
+
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>Balance: {parseFloat(selectedToken.balance).toFixed(4)} {selectedToken.symbol}</span>
+                          <button 
+                            onClick={() => setSendTokenAmount(selectedToken.balance)} 
+                            className="text-purple-600 font-bold hover:text-purple-700"
+                          >
+                            Max
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={sendToken}
+                          disabled={loading || !sendTo || !sendTokenAmount}
+                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 hover:shadow-lg transition"
+                        >
+                          {loading ? '⏳ Sending Token...' : `📤 Send ${selectedToken.symbol}`}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Receive View */}
                     {view === 'receive' && (
                       <div className="space-y-4">
                         <div className="flex justify-between mb-4">
-                          <h2 className="text-2xl font-bold">📥 Receive</h2>
-                          <button onClick={() => setView('wallet')} className="text-3xl">✕</button>
+                          <h2 className="text-2xl font-bold text-gray-800">📥 Receive {currentChain.symbol}</h2>
+                          <button onClick={() => setView('wallet')} className="text-3xl text-gray-400 hover:text-red-500 transition">✕</button>
                         </div>
 
                         <div className="text-center">
-                          <div ref={qrRef} className="inline-block mb-4 p-4 bg-white rounded-xl border-2"></div>
-                          <div className="bg-gray-100 rounded-lg p-3 font-mono text-xs break-all mb-4">
+                          <div ref={qrRef} className="inline-block mb-4 p-4 bg-white rounded-xl border-2 shadow-lg"></div>
+                          <div className="bg-gray-100 rounded-lg p-3 font-mono text-xs break-all mb-4 border-2">
                             {wallet.address}
                           </div>
                           <button
-                            onClick={() => {navigator.clipboard.writeText(wallet.address); showMsg('✅ Copied!')}}
-                            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-bold"
+                            onClick={() => {
+                              navigator.clipboard.writeText(wallet.address); 
+                              showMsg('✅ Address copied!')
+                            }}
+                            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-bold hover:shadow-lg transition"
                           >
                             📋 Copy Address
                           </button>
                         </div>
+
+                        <div className="bg-blue-50 border-2 border-blue-300 p-3 rounded-xl">
+                          <p className="text-blue-800 text-xs">
+                            💡 <span className="font-bold">Tip:</span> Only send {currentChain.symbol} or {currentChain.name} tokens to this address.
+                          </p>
+                        </div>
                       </div>
                     )}
 
+                    {/* History View */}
                     {view === 'history' && (
                       <div className="space-y-4">
                         <div className="flex justify-between mb-4">
-                          <h2 className="text-2xl font-bold">📜 History</h2>
-                          <button onClick={() => setView('wallet')} className="text-3xl">✕</button>
+                          <h2 className="text-2xl font-bold text-gray-800">📜 Transaction History</h2>
+                          <button onClick={() => setView('wallet')} className="text-3xl text-gray-400 hover:text-red-500 transition">✕</button>
                         </div>
 
-                        {txs.length === 0 ? (
+                        {txs.filter(tx => tx.chain === chain).length === 0 ? (
                           <div className="text-center py-16">
                             <div className="text-6xl mb-4">📜</div>
                             <p className="text-gray-600 font-bold">No transactions yet</p>
+                            <p className="text-xs text-gray-500 mt-2">Your transaction history will appear here</p>
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {txs.map((tx, i) => (
-                              <div key={i} className="bg-gray-50 rounded-lg p-4 border-2">
+                            {txs.filter(tx => tx.chain === chain).map((tx, i) => (
+                              <div key={i} className="bg-gradient-to-r from-gray-50 to-white rounded-lg p-4 border-2 hover:border-purple-300 transition">
                                 <div className="flex justify-between mb-2">
                                   <div className="flex items-center gap-2">
                                     <span className="text-2xl">
-                                      {tx.type === 'send' ? '📤' : tx.type === 'swap' ? '🔄' : tx.type === 'bridge' ? '🌉' : '📥'}
+                                      {tx.type === 'send' ? '📤' : tx.type === 'token-send' ? '🪙' : '📥'}
                                     </span>
                                     <div>
-                                      <div className="font-bold capitalize">{tx.type}</div>
+                                      <div className="font-bold text-gray-800 capitalize">
+                                        {tx.type === 'token-send' ? 'Token Send' : tx.type}
+                                      </div>
                                       <div className="text-xs text-gray-600">{tx.time}</div>
                                     </div>
                                   </div>
                                   <div className="text-right">
-                                    {tx.type === 'swap' && (
-                                      <div>
-                                        <div className="font-bold text-sm">{tx.amount} {tx.from}</div>
-                                        <div className="text-green-600 text-xs">→ {tx.received} {tx.to}</div>
-                                      </div>
-                                    )}
-                                    {tx.type === 'bridge' && (
-                                      <div>
-                                        <div className="font-bold text-sm">{tx.amount}</div>
-                                        <div className="text-blue-600 text-xs">{tx.fromChain} → {tx.toChain}</div>
-                                      </div>
-                                    )}
-                                    {tx.type === 'send' && (
-                                      <div className="font-bold">-{tx.amount}</div>
-                                    )}
+                                    <div className="font-bold text-gray-800">-{tx.amount} {tx.symbol}</div>
                                     <span className={`text-xs px-2 py-1 rounded ${tx.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                                       {tx.status}
                                     </span>
                                   </div>
                                 </div>
-                                {tx.to && tx.type === 'send' && (
-                                  <div className="text-xs text-gray-600 mb-2">To: {tx.to.substring(0, 10)}...{tx.to.substring(32)}</div>
-                                )}
-                                {tx.fee && (
-                                  <div className="text-xs text-gray-600 mb-2">Fee: {tx.fee}</div>
-                                )}
-                                {tx.hash && (
-                                  <button
-                                    onClick={() => window.open(`${isTestnet ? currentChain.testnet.explorer : currentChain.mainnet.explorer}/tx/${tx.hash}`, '_blank')}
-                                    className="text-xs text-purple-600 font-bold"
-                                  >
-                                    View on Explorer →
-                                  </button>
-                                )}
+                                <div className="text-xs text-gray-600 mb-2 bg-gray-100 p-2 rounded font-mono">
+                                  To: {tx.to.substring(0, 10)}...{tx.to.substring(32)}
+                                </div>
+                                <button
+                                  onClick={() => window.open(`${getExplorer()}/tx/${tx.hash}`, '_blank')}
+                                  className="text-xs text-purple-600 font-bold hover:underline"
+                                >
+                                  View on Explorer →
+                                </button>
                               </div>
                             ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* ========== NEW VIEW: SWAP ========== */}
-                    {view === 'swap' && (
-                      <div className="space-y-4">
-                        <div className="flex justify-between mb-4">
-                          <h2 className="text-2xl font-bold">🔄 Swap Tokens</h2>
-                          <button onClick={() => setView('wallet')} className="text-3xl">✕</button>
-                        </div>
-
-                        <div className="bg-purple-50 border-2 border-purple-300 p-4 rounded-xl">
-                          <p className="font-bold text-purple-800">✅ Real DEX Swap</p>
-                          <p className="text-xs text-purple-700 mt-1">Powered by decentralized exchanges</p>
-                        </div>
-
-                        {/* From Token */}
-                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border-2">
-                          <label className="block text-sm font-bold text-gray-700 mb-2">From</label>
-                          <select
-                            value={swapFromToken}
-                            onChange={(e) => setSwapFromToken(e.target.value)}
-                            className="w-full border-2 rounded-lg p-3 mb-3 font-bold"
-                          >
-                            {Object.entries(tokens).map(([key, token]) => (
-                              <option key={key} value={key}>{token.symbol} - {token.name}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="number"
-                            step="0.0001"
-                            value={swapAmount}
-                            onChange={(e) => setSwapAmount(e.target.value)}
-                            placeholder="0.00"
-                            className="w-full border-2 rounded-lg p-3 text-lg"
-                          />
-                          <div className="flex justify-between mt-2 text-sm text-gray-600">
-                            <span>Balance: {parseFloat(wallet.balance).toFixed(4)}</span>
-                            <button 
-                              onClick={() => setSwapAmount(wallet.balance)} 
-                              className="text-purple-600 font-bold"
-                            >
-                              Max
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Swap Direction */}
-                        <div className="flex justify-center">
-                          <button
-                            onClick={() => {
-                              const temp = swapFromToken;
-                              setSwapFromToken(swapToToken);
-                              setSwapToToken(temp);
-                            }}
-                            className="bg-white border-2 border-purple-500 rounded-full p-3 hover:bg-purple-50 transition"
-                          >
-                            <span className="text-2xl">⇅</span>
-                          </button>
-                        </div>
-
-                        {/* To Token */}
-                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border-2">
-                          <label className="block text-sm font-bold text-gray-700 mb-2">To</label>
-                          <select
-                            value={swapToToken}
-                            onChange={(e) => setSwapToToken(e.target.value)}
-                            className="w-full border-2 rounded-lg p-3 mb-3 font-bold"
-                          >
-                            {Object.entries(tokens).map(([key, token]) => (
-                              <option key={key} value={key}>{token.symbol} - {token.name}</option>
-                            ))}
-                          </select>
-                          <div className="w-full bg-white rounded-lg p-3 text-lg font-bold border-2">
-                            {swapQuote ? swapQuote.toAmount : '0.00'}
-                          </div>
-                        </div>
-
-                        {/* Quote Details */}
-                        {swapQuote && (
-                          <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
-                            <div className="flex justify-between text-sm mb-2">
-                              <span className="text-gray-700">Exchange Rate</span>
-                              <span className="font-bold">1 {swapFromToken} = {swapQuote.rate} {swapToToken}</span>
-                            </div>
-                            <div className="flex justify-between text-sm mb-2">
-                              <span className="text-gray-700">Protocol Fee</span>
-                              <span className="font-bold">{swapQuote.fee}</span>
-                            </div>
-                            <div className="flex justify-between text-sm mb-2">
-                              <span className="text-gray-700">Price Impact</span>
-                              <span className="font-bold text-green-600">{swapQuote.priceImpact}</span>
-                            </div>
-                            <div className="border-t border-gray-300 mt-2 pt-2"></div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-700 font-bold">You'll Receive</span>
-                              <span className="font-bold text-green-600">{swapQuote.toAmount} {swapToToken}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Swap Button */}
-                        <button
-                          onClick={executeSwap}
-                          disabled={loading || swapLoading || !swapQuote || swapFromToken === swapToToken}
-                          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 hover:shadow-xl transition"
-                        >
-                          {loading || swapLoading ? '⏳ Swapping...' : swapQuote ? '🔄 Execute Swap' : '💱 Get Quote'}
-                        </button>
-
-                        {swapFromToken === swapToToken && (
-                          <div className="bg-yellow-50 border-2 border-yellow-300 p-3 rounded-xl">
-                            <p className="text-yellow-800 text-sm font-bold">⚠️ Please select different tokens</p>
-                          </div>
-                        )}
-
-                        <div className="bg-blue-50 border-2 border-blue-300 p-3 rounded-xl">
-                          <p className="text-blue-800 text-xs">
-                            💡 <span className="font-bold">Tip:</span> Swaps are executed on decentralized exchanges. You're always in control of your funds.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ========== NEW VIEW: BRIDGE ========== */}
-                    {view === 'bridge' && (
-                      <div className="space-y-4">
-                        <div className="flex justify-between mb-4">
-                          <h2 className="text-2xl font-bold">🌉 Cross-Chain Bridge</h2>
-                          <button onClick={() => setView('wallet')} className="text-3xl">✕</button>
-                        </div>
-
-                        <div className="bg-green-50 border-2 border-green-300 p-4 rounded-xl">
-                          <p className="font-bold text-green-800">✅ Real Cross-Chain Transfer</p>
-                          <p className="text-xs text-green-700 mt-1">Secure multi-chain bridge protocol</p>
-                        </div>
-
-                        {/* From Chain */}
-                        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border-2">
-                          <label className="block text-sm font-bold text-gray-700 mb-2">From Chain</label>
-                          <select
-                            value={bridgeFromChain}
-                            onChange={(e) => setBridgeFromChain(e.target.value)}
-                            className="w-full border-2 rounded-lg p-3 mb-3 font-bold"
-                          >
-                            {Object.entries(chains).map(([key, chain]) => (
-                              <option key={key} value={key}>{chain.name} ({chain.symbol})</option>
-                            ))}
-                          </select>
-                          <input
-                            type="number"
-                            step="0.0001"
-                            value={bridgeAmount}
-                            onChange={(e) => setBridgeAmount(e.target.value)}
-                            placeholder="0.00"
-                            className="w-full border-2 rounded-lg p-3 text-lg"
-                          />
-                          <div className="flex justify-between mt-2 text-sm text-gray-600">
-                            <span>Balance: {parseFloat(wallet.balance).toFixed(4)}</span>
-                            <button 
-                              onClick={() => setBridgeAmount(wallet.balance)} 
-                              className="text-blue-600 font-bold"
-                            >
-                              Max
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Bridge Direction */}
-                        <div className="flex justify-center">
-                          <button
-                            onClick={() => {
-                              const temp = bridgeFromChain;
-                              setBridgeFromChain(bridgeToChain);
-                              setBridgeToChain(temp);
-                            }}
-                            className="bg-white border-2 border-green-500 rounded-full p-3 hover:bg-green-50 transition"
-                          >
-                            <span className="text-2xl">⬇️</span>
-                          </button>
-                        </div>
-
-                        {/* To Chain */}
-                        <div className="bg-gradient-to-r from-cyan-50 to-teal-50 rounded-xl p-4 border-2">
-                          <label className="block text-sm font-bold text-gray-700 mb-2">To Chain</label>
-                          <select
-                            value={bridgeToChain}
-                            onChange={(e) => setBridgeToChain(e.target.value)}
-                            className="w-full border-2 rounded-lg p-3 font-bold"
-                          >
-                            {Object.entries(chains).map(([key, chain]) => (
-                              <option key={key} value={key}>{chain.name} ({chain.symbol})</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Bridge Details */}
-                        {bridgeAmount && parseFloat(bridgeAmount) > 0 && (
-                          <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
-                            <div className="flex justify-between text-sm mb-2">
-                              <span className="text-gray-700">Bridge Amount</span>
-                              <span className="font-bold">{bridgeAmount} {chains[bridgeFromChain].symbol}</span>
-                            </div>
-                            <div className="flex justify-between text-sm mb-2">
-                              <span className="text-gray-700">Bridge Fee (0.1%)</span>
-                              <span className="font-bold">{bridgeFee} {chains[bridgeFromChain].symbol}</span>
-                            </div>
-                            <div className="flex justify-between text-sm mb-2">
-                              <span className="text-gray-700">Estimated Time</span>
-                              <span className="font-bold">2-5 minutes</span>
-                            </div>
-                            <div className="flex justify-between text-sm mb-2">
-                              <span className="text-gray-700">Security</span>
-                              <span className="font-bold text-green-600">✓ Verified Protocol</span>
-                            </div>
-                            <div className="border-t border-gray-300 mt-2 pt-2"></div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-700 font-bold">You'll Receive on {chains[bridgeToChain].name}</span>
-                              <span className="font-bold text-green-600">
-                                {(parseFloat(bridgeAmount) - parseFloat(bridgeFee)).toFixed(6)} {chains[bridgeToChain].symbol}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Bridge Button */}
-                        <button
-                          onClick={executeBridge}
-                          disabled={loading || bridgeLoading || !bridgeAmount || parseFloat(bridgeAmount) <= 0 || bridgeFromChain === bridgeToChain}
-                          className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 hover:shadow-xl transition"
-                        >
-                          {loading || bridgeLoading ? '⏳ Bridging...' : '🌉 Execute Bridge'}
-                        </button>
-
-                        {bridgeFromChain === bridgeToChain && (
-                          <div className="bg-yellow-50 border-2 border-yellow-300 p-3 rounded-xl">
-                            <p className="text-yellow-800 text-sm font-bold">⚠️ Please select different chains</p>
-                          </div>
-                        )}
-
-                        <div className="bg-blue-50 border-2 border-blue-300 p-3 rounded-xl">
-                          <p className="text-blue-800 text-xs">
-                            💡 <span className="font-bold">Important:</span> Bridge transactions take 2-5 minutes to complete. Your funds will appear on the destination chain after confirmation.
-                          </p>
-                        </div>
-
-                        {!isTestnet && (
-                          <div className="bg-orange-50 border-2 border-orange-300 p-3 rounded-xl">
-                            <p className="text-orange-800 text-xs">
-                              ⚠️ <span className="font-bold">Mainnet Warning:</span> Always test with small amounts first on testnet before bridging large amounts on mainnet.
-                            </p>
                           </div>
                         )}
                       </div>
@@ -1052,9 +920,13 @@
 
                 {/* Footer */}
                 <div className="mt-4 text-center text-white text-sm">
-                  <p className="font-bold">BaintWallet Pro v2.0 - Real EVM Wallet</p>
-                  <p className="text-xs mt-1">✅ ETH • BNB • AVAX • BASE • POLYGON</p>
-                  <p className="text-xs mt-1">🔄 Swap • 🌉 Bridge • 📤 Send • 📥 Receive</p>
+                  <p className="font-bold">BaintWallet v3.0 - 100% Real Features</p>
+                  <p className="text-xs mt-1 opacity-90">
+                    ✅ Real Sends • ✅ Real Receives • ✅ Real Token Support • ✅ Real Prices
+                  </p>
+                  <p className="text-xs mt-2 opacity-75">
+                    {isTestnet ? '🧪 Testnet Mode' : '🌐 Mainnet Mode'} • {currentChain.name}
+                  </p>
                 </div>
               </div>
             </div>
